@@ -217,6 +217,12 @@ async function storeImage({ imageDataUrl, imageName }) {
     };
   }
 
+  if (process.env.VERCEL) {
+    const error = new Error("Vercel Blob 토큰이 설정되지 않아 이미지를 저장할 수 없습니다. BLOB_READ_WRITE_TOKEN 환경변수를 확인해주세요.");
+    error.statusCode = 500;
+    throw error;
+  }
+
   const uploadDir = path.join(__dirname, "..", "public", "uploads");
   await fs.mkdir(uploadDir, { recursive: true });
   await fs.writeFile(path.join(uploadDir, filename), optimizedBuffer);
