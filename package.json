@@ -1,0 +1,36 @@
+{
+  "name": "saf_hacbu",
+  "version": "1.0.0",
+  "description": "SAF physics peer review website",
+  "main": "server/index.cjs",
+  "scripts": {
+    "dev": "concurrently \"npm:server\" \"npm:client\"",
+    "client": "vite --host 0.0.0.0",
+    "server": "node server/index.cjs",
+    "build": "tsc && vite build",
+    "start": "node server/index.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.3.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "lucide-react": "^1.14.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}

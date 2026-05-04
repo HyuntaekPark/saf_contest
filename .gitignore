@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+saf-dev.*.log
+public/uploads/
+server/data/
+.vercel/
