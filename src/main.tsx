@@ -232,23 +232,46 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
     : Math.max(0, settings.maxSubmissionsPerUser - userSubmissionCount);
   const canViewRanking = isAdmin || settings.showRanking;
 
-  async function loadSubmissions() {
-    setLoading(true);
-    const response = await fetch(`/api/bootstrap?voterId=${encodeURIComponent(voterId)}`);
-    const payload = await response.json();
-    setSettings(payload.settings);
-    setUsedVotes(payload.usedVotes);
-    setSubmissions(payload.submissions);
-    setLoading(false);
+  async function loadSubmissions({ silent = false } = {}) {
+    if (!silent) setLoading(true);
+    try {
+      const response = await fetch(`/api/bootstrap?voterId=${encodeURIComponent(voterId)}`);
+      const payload = await response.json();
+      setSettings(payload.settings);
+      setUsedVotes(payload.usedVotes);
+      setSubmissions(payload.submissions);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }
 
-  async function refresh() {
-    await loadSubmissions();
+  async function refresh({ silent = false } = {}) {
+    await loadSubmissions({ silent });
   }
 
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refresh({ silent: true });
+      }
+    }, 8000);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh({ silent: true });
+      }
+    };
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [voterId]);
 
   const ranked = useMemo(
     () => [...submissions].sort((a, b) => b.voteCount - a.voteCount || Date.parse(b.createdAt) - Date.parse(a.createdAt)),
