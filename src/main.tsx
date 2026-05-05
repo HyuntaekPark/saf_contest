@@ -42,6 +42,10 @@ function studentKey(user: User) {
   return user.role === "admin" ? "admin" : `${user.batch}-${user.studentID}`;
 }
 
+function displayAuthor(submission: Submission) {
+  return `${submission.authorName}(${submission.authorId})`;
+}
+
 function hasAdminAccess(user: User) {
   return user.role === "admin" || studentKey(user) === "26-048";
 }
@@ -513,7 +517,7 @@ function SubmitPanel({
             disabled={blocked}
             required
           />
-          <span>본인은 제출한 이미지와 문구를 행사 평가에 사용할 권리가 있으며, 저작권 관련 책임을 부담하는 데 동의합니다.</span>
+          <span>한국과학영재학교는 제출한 이미지와 문구를 행사 평가에 사용할 권리가 있으며, 저작권 관련 책임은 본인이 부담하는데 동의합니다.</span>
         </label>
         <label>
           <input
@@ -643,7 +647,7 @@ function SubmissionCard({
   return (
     <article className="submission-card">
       <header>
-        <strong>{submission.authorName}</strong>
+        <strong>{displayAuthor(submission)}</strong>
         <span>{created}</span>
       </header>
       <figure>
@@ -695,7 +699,7 @@ function ImagePreview({ submission, onClose }: { submission: Submission; onClose
         <img src={submission.imageUrl} alt={submission.title} />
         <div>
           <strong>{submission.title}</strong>
-          <p>{submission.authorName}</p>
+          <p>{displayAuthor(submission)}</p>
         </div>
       </div>
     </section>
@@ -715,7 +719,7 @@ function Ranking({ submissions }: { submissions: Submission[] }) {
           <img src={submission.imageUrl} alt="" />
           <div>
             <strong>{submission.title}</strong>
-            <p>{submission.authorName} · 추천 {submission.voteCount}</p>
+            <p>{displayAuthor(submission)} · 추천 {submission.voteCount}</p>
           </div>
         </article>
       ))}
