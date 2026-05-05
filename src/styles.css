@@ -662,6 +662,14 @@ button:not(:disabled):hover {
   resize: vertical;
 }
 
+.character-counter {
+  justify-self: end;
+  margin-top: -2px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .file-box {
   min-height: 126px;
   place-items: center;

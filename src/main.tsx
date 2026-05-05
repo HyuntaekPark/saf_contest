@@ -501,7 +501,8 @@ function SubmitPanel({
       </label>
       <label>
         <span>간단한 설명</span>
-        <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={160} required disabled={blocked} />
+        <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={300} required disabled={blocked} />
+        <small className="character-counter">{description.length}/300</small>
       </label>
       <label className="file-box">
         <UploadCloud size={28} aria-hidden />
