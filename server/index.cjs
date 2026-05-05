@@ -281,6 +281,20 @@ app.post("/api/login", async (req, res) => {
     return res.status(400).json({ code: 400, status: "error", message: "아이디와 비밀번호를 입력해주세요." });
   }
 
+  if (username === "demo" && password === "demo") {
+    return res.json({
+      code: 200,
+      status: "success",
+      message: "Logged in with local demo account.",
+      data: {
+        name: "테스트 사용자",
+        batch: "demo",
+        studentID: "001",
+        role: "user"
+      }
+    });
+  }
+
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     return res.json({
       code: 200,
