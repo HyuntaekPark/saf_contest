@@ -61,6 +61,8 @@ async function ensureSchema() {
     )
   `;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS image_urls TEXT`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS image_pathnames TEXT`;
   await sql`
     CREATE TABLE IF NOT EXISTS votes (
       submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
@@ -85,19 +87,35 @@ function isAdmin(id) {
 }
 
 function mapSubmission(row) {
+  const imageUrls = parseJsonList(row.image_urls, row.image_url);
+  const imagePathnames = parseJsonList(row.image_pathnames, row.image_pathname);
   return {
     id: row.id,
     authorName: row.author_name,
     authorId: row.author_id,
     title: row.title,
     description: row.description,
-    imageUrl: row.image_url,
-    imagePathname: row.image_pathname,
+    imageUrl: imageUrls[0],
+    imageUrls,
+    imagePathname: imagePathnames[0] ?? null,
+    imagePathnames,
     createdAt: new Date(row.created_at).toISOString(),
     pinnedAt: row.pinned_at ? new Date(row.pinned_at).toISOString() : null,
     voteCount: Number(row.vote_count) || 0,
     votedByMe: Boolean(row.voted_by_me)
   };
+}
+
+function parseJsonList(value, fallback) {
+  if (value) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter((item) => typeof item === "string" && item);
+    } catch {
+      return fallback ? [fallback] : [];
+    }
+  }
+  return fallback ? [fallback] : [];
 }
 
 async function readSettings() {
@@ -138,6 +156,8 @@ async function readSubmissions(voterId = "") {
       s.description,
       s.image_url,
       s.image_pathname,
+      s.image_urls,
+      s.image_pathnames,
       s.created_at,
       s.pinned_at,
       COUNT(v.voter_id)::int AS vote_count,
@@ -161,6 +181,8 @@ async function readSubmissionById(id, voterId = "") {
       s.description,
       s.image_url,
       s.image_pathname,
+      s.image_urls,
+      s.image_pathnames,
       s.created_at,
       s.pinned_at,
       COUNT(v.voter_id)::int AS vote_count,
@@ -265,14 +287,21 @@ app.get("/api/blob/view", async (req, res, next) => {
 });
 
 async function deleteStoredImage(submission) {
-  if (submission.image_pathname && process.env.BLOB_READ_WRITE_TOKEN) {
-    await del(submission.image_pathname).catch(() => {});
+  const imagePathnames = parseJsonList(submission.image_pathnames, submission.image_pathname);
+  const imageUrls = parseJsonList(submission.image_urls, submission.image_url);
+
+  if (imagePathnames.length > 0 && process.env.BLOB_READ_WRITE_TOKEN) {
+    await Promise.all(imagePathnames.map((pathname) => del(pathname).catch(() => {})));
     return;
   }
-  if (submission.image_url?.startsWith("/uploads/")) {
-    const imagePath = path.join(__dirname, "..", "public", "uploads", path.basename(submission.image_url));
-    await fs.unlink(imagePath).catch(() => {});
-  }
+  await Promise.all(
+    imageUrls
+      .filter((imageUrl) => imageUrl?.startsWith("/uploads/"))
+      .map((imageUrl) => {
+        const imagePath = path.join(__dirname, "..", "public", "uploads", path.basename(imageUrl));
+        return fs.unlink(imagePath).catch(() => {});
+      })
+  );
 }
 
 app.post("/api/login", async (req, res) => {
@@ -380,9 +409,14 @@ app.get("/api/submissions", async (_req, res, next) => {
 
 app.post("/api/submissions", async (req, res, next) => {
   try {
-    const { authorName, authorId, title, description, imageDataUrl, imageName } = req.body;
-    if (!authorName || !authorId || !title || !description || !imageDataUrl) {
+    const { authorName, authorId, title, description, imageDataUrl, imageDataUrls, imageName, imageNames } = req.body;
+    const requestedImages = Array.isArray(imageDataUrls) ? imageDataUrls : imageDataUrl ? [imageDataUrl] : [];
+    const requestedNames = Array.isArray(imageNames) ? imageNames : imageName ? [imageName] : [];
+    if (!authorName || !authorId || !title || !description || requestedImages.length === 0) {
       return res.status(400).json({ message: "제목, 설명, 이미지가 모두 필요합니다." });
+    }
+    if (requestedImages.length > 2) {
+      return res.status(400).json({ message: "이미지는 한 작품당 최대 2장까지 업로드할 수 있습니다." });
     }
 
     await ensureSchema();
@@ -393,12 +427,19 @@ app.post("/api/submissions", async (req, res, next) => {
       return res.status(403).json({ message: `한 사람당 최대 ${settings.maxSubmissionsPerUser}개의 작품만 올릴 수 있습니다.` });
     }
 
-    const { imageUrl, imagePathname } = await storeImage({ imageDataUrl, imageName });
+    const storedImages = [];
+    for (let index = 0; index < requestedImages.length; index += 1) {
+      storedImages.push(await storeImage({ imageDataUrl: requestedImages[index], imageName: requestedNames[index] }));
+    }
+    const imageUrls = storedImages.map((image) => image.imageUrl);
+    const imagePathnames = storedImages.map((image) => image.imagePathname).filter(Boolean);
+    const imageUrl = imageUrls[0];
+    const imagePathname = imagePathnames[0] ?? null;
     const id = `${Date.now()}`;
     const rows = await sql`
-      INSERT INTO submissions (id, author_name, author_id, title, description, image_url, image_pathname)
-      VALUES (${id}, ${authorName}, ${authorId}, ${title}, ${description}, ${imageUrl}, ${imagePathname})
-      RETURNING id, author_name, author_id, title, description, image_url, image_pathname, created_at
+      INSERT INTO submissions (id, author_name, author_id, title, description, image_url, image_pathname, image_urls, image_pathnames)
+      VALUES (${id}, ${authorName}, ${authorId}, ${title}, ${description}, ${imageUrl}, ${imagePathname}, ${JSON.stringify(imageUrls)}, ${JSON.stringify(imagePathnames)})
+      RETURNING id, author_name, author_id, title, description, image_url, image_pathname, image_urls, image_pathnames, created_at
     `;
     res.status(201).json({ ...mapSubmission({ ...rows[0], vote_count: 0, voted_by_me: false }) });
   } catch (error) {

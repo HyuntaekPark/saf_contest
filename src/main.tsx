@@ -17,7 +17,9 @@ type Submission = {
   title: string;
   description: string;
   imageUrl: string;
+  imageUrls?: string[];
   imagePathname?: string | null;
+  imagePathnames?: string[];
   createdAt: string;
   pinnedAt?: string | null;
   voteCount: number;
@@ -44,6 +46,10 @@ function studentKey(user: User) {
 
 function displayAuthor(submission: Submission) {
   return `${submission.authorName}(${submission.authorId})`;
+}
+
+function submissionImages(submission: Submission) {
+  return submission.imageUrls?.length ? submission.imageUrls : [submission.imageUrl];
 }
 
 function hasAdminAccess(user: User) {
@@ -441,20 +447,20 @@ function SubmitPanel({
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState<File | null>(null);
+  const [images, setImages] = useState<File[]>([]);
   const [copyrightAgreed, setCopyrightAgreed] = useState(false);
   const [contentAgreed, setContentAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const blocked = !isAdmin && submissionCount >= settings.maxSubmissionsPerUser;
-  const canSubmit = !saving && !blocked && copyrightAgreed && contentAgreed;
+  const canSubmit = !saving && !blocked && images.length > 0 && copyrightAgreed && contentAgreed;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!image || !canSubmit) return;
+    if (images.length === 0 || !canSubmit) return;
     setSaving(true);
 
     try {
-      const imageDataUrl = await compressImageFile(image);
+      const imageDataUrls = await Promise.all(images.map((image) => compressImageFile(image)));
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -463,8 +469,8 @@ function SubmitPanel({
           authorId: studentKey(user),
           title,
           description,
-          imageDataUrl,
-          imageName: image.name
+          imageDataUrls,
+          imageNames: images.map((image) => image.name)
         })
       });
 
@@ -475,7 +481,7 @@ function SubmitPanel({
       }
       setTitle("");
       setDescription("");
-      setImage(null);
+      setImages([]);
       setCopyrightAgreed(false);
       setContentAgreed(false);
       await onCreated();
@@ -506,23 +512,35 @@ function SubmitPanel({
       </label>
       <label className="file-box">
         <UploadCloud size={28} aria-hidden />
-        <span>{image ? image.name : "AI 유머 콘텐츠 이미지 업로드 (5MB 이하)"}</span>
+        <span>
+          {images.length > 0
+            ? images.map((image) => image.name).join(", ")
+            : "AI 유머 콘텐츠 이미지 업로드 (최대 2장, 각 5MB 이하)"}
+        </span>
         <input
           accept="image/*"
           onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
-            if (file && file.size > maxUploadBytes) {
-              alert("이미지는 5MB 이하만 업로드할 수 있습니다.");
+            const files = Array.from(event.target.files ?? []).slice(0, 2);
+            if ((event.target.files?.length ?? 0) > 2) {
+              alert("이미지는 한 작품당 최대 2장까지 업로드할 수 있습니다.");
               event.target.value = "";
-              setImage(null);
+              setImages([]);
               return;
             }
-            setImage(file);
+            if (files.some((file) => file.size > maxUploadBytes)) {
+              alert("이미지는 각 5MB 이하만 업로드할 수 있습니다.");
+              event.target.value = "";
+              setImages([]);
+              return;
+            }
+            setImages(files);
           }}
           type="file"
+          multiple
           required
           disabled={blocked}
         />
+        {images.length > 0 && <small className="file-counter">{images.length}/2장 선택됨</small>}
       </label>
       <section className="agreement-box" aria-label="제출 동의">
         <label>
@@ -653,6 +671,7 @@ function SubmissionCard({
 }) {
   const voted = submission.votedByMe;
   const mine = submission.authorId === voterId;
+  const images = submissionImages(submission);
   const created = new Intl.DateTimeFormat("ko-KR", {
     month: "numeric",
     day: "numeric",
@@ -667,7 +686,11 @@ function SubmissionCard({
         <span>{created}</span>
       </header>
       <figure>
-        <img src={submission.imageUrl} alt={submission.title} />
+        <div className={images.length > 1 ? "image-stack two-images" : "image-stack"}>
+          {images.map((imageUrl, index) => (
+            <img key={`${imageUrl}-${index}`} src={imageUrl} alt={`${submission.title} ${index + 1}`} />
+          ))}
+        </div>
         <button className="expand-button" onClick={() => onPreview(submission)} title="크게 보기" type="button">
           <Expand size={22} aria-hidden />
           <span>크게보기</span>
@@ -706,13 +729,18 @@ function SubmissionCard({
 }
 
 function ImagePreview({ submission, onClose }: { submission: Submission; onClose: () => void }) {
+  const images = submissionImages(submission);
   return (
     <section className="preview-overlay" role="dialog" aria-modal="true" aria-label="이미지 크게 보기" onClick={onClose}>
       <div className="preview-dialog" onClick={(event) => event.stopPropagation()}>
         <button className="preview-close" onClick={onClose} title="닫기" type="button">
           <X size={22} aria-hidden />
         </button>
-        <img src={submission.imageUrl} alt={submission.title} />
+        <div className={images.length > 1 ? "preview-images multiple" : "preview-images"}>
+          {images.map((imageUrl, index) => (
+            <img key={`${imageUrl}-${index}`} src={imageUrl} alt={`${submission.title} ${index + 1}`} />
+          ))}
+        </div>
         <div>
           <strong>{submission.title}</strong>
           <p>{displayAuthor(submission)}</p>
