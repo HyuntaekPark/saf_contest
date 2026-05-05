@@ -416,6 +416,11 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
         </section>
       )}
       {previewSubmission && <ImagePreview submission={previewSubmission} onClose={() => setPreviewSubmission(null)} />}
+      <footer className="app-footer">
+        <button className="text-link" onClick={() => setShowPrivacy(true)} type="button">
+          개인정보처리방침
+        </button>
+      </footer>
       {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)} />}
     </main>
   );

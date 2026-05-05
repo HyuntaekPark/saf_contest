@@ -838,6 +838,12 @@ button:not(:disabled):hover {
   cursor: pointer;
 }
 
+.app-footer {
+  display: none;
+  padding: 0 18px 28px;
+  text-align: center;
+}
+
 .policy-overlay {
   position: fixed;
   inset: 0;
@@ -960,27 +966,31 @@ button:not(:disabled):hover {
   .topbar {
     height: auto;
     min-height: 56px;
-    padding: 8px 14px;
+    padding: 8px 12px;
   }
 
   .topbar img {
-    width: 132px;
+    width: 118px;
+  }
+
+  .topbar-user {
+    min-width: 0;
+    gap: 6px;
   }
 
   .topbar-user span {
-    max-width: 128px;
+    max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .topbar-link {
-    max-width: 112px;
-    padding: 0 8px;
-    overflow: hidden;
-    font-size: 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
+  }
+
+  .app-footer {
+    display: block;
   }
 
   .hero {
@@ -1051,6 +1061,12 @@ body[data-device="mobile"] .secondary-button {
 body[data-device="mobile"] .topbar {
   position: sticky;
   min-height: 54px;
+  gap: 8px;
+}
+
+body[data-device="mobile"] .icon-button {
+  width: 36px;
+  height: 36px;
 }
 
 body[data-device="mobile"] .hero {
