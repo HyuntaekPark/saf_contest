@@ -738,7 +738,7 @@ function SubmissionCard({
         <p>{submission.description}</p>
       </section>
       <footer>
-        <span className="vote-count">{showVoteCount ? `${submission.voteCount} 추천` : "추천수 비공개"}</span>
+        {showVoteCount && <span className="vote-count">{submission.voteCount} 추천</span>}
         <div className="card-actions">
           {canPin && (
             <button className="pin-button" onClick={() => onPin(submission.id)} title={submission.pinnedAt ? "고정 해제" : "첫 번째로 고정"} type="button">
