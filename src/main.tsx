@@ -141,6 +141,7 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -198,8 +199,12 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
             {loading ? "확인 중" : "LOGIN"}
           </button>
           {message && <p className="login-message">{message}</p>}
+          <button className="text-link privacy-link" onClick={() => setShowPrivacy(true)} type="button">
+            개인정보처리방침
+          </button>
         </section>
       </form>
+      {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)} />}
     </main>
   );
 }
@@ -209,6 +214,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [settings, setSettings] = useState<ContestSettings>(defaultSettings);
   const [activeTab, setActiveTab] = useState<"vote" | "submit" | "ranking" | "settings">("vote");
   const [previewSubmission, setPreviewSubmission] = useState<Submission | null>(null);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [loading, setLoading] = useState(true);
   const voterId = studentKey(user);
   const isAdmin = hasAdminAccess(user);
@@ -311,6 +317,9 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
       <header className="topbar">
         <img src="/assets/logo.png" alt="KSA" />
         <div className="topbar-user">
+          <button className="topbar-link" onClick={() => setShowPrivacy(true)} type="button">
+            개인정보처리방침
+          </button>
           <span>{user.name} · {isAdmin ? "admin" : `${user.batch}${user.studentID}`}</span>
           <button className="icon-button" onClick={onLogout} title="로그아웃">
             <LogOut size={22} aria-hidden />
@@ -407,6 +416,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
         </section>
       )}
       {previewSubmission && <ImagePreview submission={previewSubmission} onClose={() => setPreviewSubmission(null)} />}
+      {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)} />}
     </main>
   );
 }
@@ -723,6 +733,78 @@ function Ranking({ submissions }: { submissions: Submission[] }) {
           </div>
         </article>
       ))}
+    </section>
+  );
+}
+
+function PrivacyPolicy({ onClose }: { onClose: () => void }) {
+  return (
+    <section className="policy-overlay" role="dialog" aria-modal="true" aria-label="개인정보처리방침" onClick={onClose}>
+      <article className="policy-dialog" onClick={(event) => event.stopPropagation()}>
+        <header className="policy-header">
+          <div>
+            <p className="eyebrow">Privacy Policy</p>
+            <h2>개인정보처리방침</h2>
+            <p>SAF 2026 물리학 유머 콘텐츠 콘테스트 동료 평가 사이트</p>
+          </div>
+          <button className="policy-close" onClick={onClose} title="닫기" type="button">
+            <X size={22} aria-hidden />
+          </button>
+        </header>
+        <div className="policy-content">
+          <section>
+            <h3>1. 처리 목적</h3>
+            <p>
+              본 사이트는 참가자 본인 확인, 작품 제출, 동료 추천, 중복 투표 방지, 순위 집계 및 행사 운영 관리를
+              위해 필요한 범위에서만 개인정보를 처리합니다.
+            </p>
+          </section>
+          <section>
+            <h3>2. 처리 항목</h3>
+            <p>
+              로그인 시 가온누리 계정 인증 결과로 제공되는 이름, 기수, 학번을 사용합니다. 비밀번호는 KSAIN 로그인
+              확인 요청에만 사용되며 사이트 DB에 저장하지 않습니다. 작품 제출 시 작성자 식별값, 제목, 설명, 이미지
+              저장 경로, 추천 기록, 생성 시각이 저장됩니다.
+            </p>
+          </section>
+          <section>
+            <h3>3. 보관 및 파기</h3>
+            <p>
+              수집 정보는 행사 운영 기간 동안 보관하고, 행사 종료 후 운영 확인이 끝나면 지체 없이 삭제하는 것을
+              원칙으로 합니다. 별도 요청이 있거나 운영상 보관 필요성이 사라진 경우 관리자가 먼저 삭제할 수 있습니다.
+            </p>
+          </section>
+          <section>
+            <h3>4. 위탁 및 외부 서비스</h3>
+            <p>
+              사이트 운영을 위해 Vercel, Vercel Blob, Neon PostgreSQL을 사용할 수 있습니다. 로그인 확인에는 KSAIN
+              로그인 API가 사용됩니다. 운영자는 행사 목적 외 광고, 판매, 마케팅 목적으로 개인정보를 이용하지 않습니다.
+            </p>
+          </section>
+          <section>
+            <h3>5. 참가자 책임과 게시물 관리</h3>
+            <p>
+              참가자는 자신이 제출한 이미지와 문구에 대해 필요한 권리를 보유하고 있음을 보증해야 하며, 저작권 침해,
+              욕설, 외설, 혐오 표현 등 부적절한 내용으로 발생하는 책임은 제출자에게 있습니다. 운영자는 행사 진행과
+              안전한 평가 환경을 위해 부적절한 게시물을 사전 통지 없이 숨기거나 삭제할 수 있습니다.
+            </p>
+          </section>
+          <section>
+            <h3>6. 권리 행사</h3>
+            <p>
+              참가자는 본인 게시물의 삭제를 직접 요청하거나 사이트 기능으로 삭제할 수 있습니다. 개인정보 열람, 정정,
+              삭제 요청은 행사 관리자에게 문의해 처리할 수 있습니다.
+            </p>
+          </section>
+          <section>
+            <h3>7. 주의 사항</h3>
+            <p>
+              제출 이미지나 설명에는 행사 평가에 필요하지 않은 타인의 얼굴, 연락처, 민감한 개인정보를 포함하지 않는
+              것을 권장합니다. 본 방침은 행사 운영을 위한 간이 안내이며, 최종 운영 전 학교 또는 담당자의 검토를 권장합니다.
+            </p>
+          </section>
+        </div>
+      </article>
     </section>
   );
 }
