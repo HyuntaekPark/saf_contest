@@ -102,6 +102,22 @@ function App() {
     const raw = localStorage.getItem(userKey);
     return raw ? JSON.parse(raw) : null;
   });
+  const [deviceType, setDeviceType] = useState<"mobile" | "desktop">("desktop");
+
+  useEffect(() => {
+    const detectDevice = () => {
+      const touchDevice = window.matchMedia("(pointer: coarse)").matches;
+      const narrowScreen = window.matchMedia("(max-width: 760px)").matches;
+      setDeviceType(touchDevice || narrowScreen ? "mobile" : "desktop");
+    };
+    detectDevice();
+    window.addEventListener("resize", detectDevice);
+    return () => window.removeEventListener("resize", detectDevice);
+  }, []);
+
+  useEffect(() => {
+    document.body.dataset.device = deviceType;
+  }, [deviceType]);
 
   const handleLogin = (nextUser: User) => {
     localStorage.setItem(userKey, JSON.stringify(nextUser));

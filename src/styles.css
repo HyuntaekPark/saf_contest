@@ -14,6 +14,10 @@ body {
   margin: 0;
 }
 
+body[data-device="mobile"] {
+  background: #f6f9fc;
+}
+
 button,
 input,
 textarea {
@@ -888,4 +892,170 @@ button:not(:disabled):hover {
     width: 76px;
     height: 60px;
   }
+}
+
+body[data-device="mobile"] .login-page {
+  min-height: 100svh;
+  padding: 14px;
+  align-items: end;
+}
+
+body[data-device="mobile"] .login-panel {
+  width: 100%;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(13, 29, 49, 0.34);
+}
+
+body[data-device="mobile"] .login-logo {
+  width: 210px;
+  margin-bottom: 18px;
+}
+
+body[data-device="mobile"] .login-copy h1 {
+  font-size: 28px;
+  white-space: normal;
+}
+
+body[data-device="mobile"] .login-description {
+  font-size: 15px;
+}
+
+body[data-device="mobile"] .login-form {
+  padding: 16px;
+}
+
+body[data-device="mobile"] .login-form input,
+body[data-device="mobile"] .primary-button,
+body[data-device="mobile"] .secondary-button {
+  min-height: 52px;
+}
+
+body[data-device="mobile"] .topbar {
+  position: sticky;
+  min-height: 54px;
+}
+
+body[data-device="mobile"] .hero {
+  min-height: auto;
+  gap: 18px;
+  padding: 30px 18px 28px;
+}
+
+body[data-device="mobile"] .hero h1 {
+  font-size: 34px;
+}
+
+body[data-device="mobile"] .hero p:not(.eyebrow) {
+  font-size: 15px;
+}
+
+body[data-device="mobile"] .hero-stats {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+body[data-device="mobile"] .hero-stats div {
+  min-height: 76px;
+  padding: 12px 10px;
+  border-radius: 14px;
+}
+
+body[data-device="mobile"] .hero-stats strong {
+  font-size: 24px;
+}
+
+body[data-device="mobile"] .hero-stats span {
+  font-size: 12px;
+}
+
+body[data-device="mobile"] .tabs,
+body[data-device="mobile"] .tabs.admin-tabs,
+body[data-device="mobile"] .tabs.compact-tabs {
+  width: calc(100% - 24px);
+  grid-template-columns: 1fr;
+  margin-top: 12px;
+  border-radius: 16px;
+}
+
+body[data-device="mobile"] .tabs button {
+  min-height: 48px;
+}
+
+body[data-device="mobile"] .vote-meter {
+  width: calc(100% - 24px);
+  min-height: 46px;
+  font-size: 14px;
+}
+
+body[data-device="mobile"] .content-grid {
+  gap: 16px;
+  margin-top: 18px;
+  padding: 0 12px 36px;
+}
+
+body[data-device="mobile"] .submission-card {
+  border-radius: 16px;
+}
+
+body[data-device="mobile"] .submission-card header {
+  min-height: 46px;
+}
+
+body[data-device="mobile"] .description {
+  min-height: auto;
+  padding: 16px;
+}
+
+body[data-device="mobile"] .submission-card footer {
+  align-items: stretch;
+}
+
+body[data-device="mobile"] .card-actions {
+  gap: 6px;
+}
+
+body[data-device="mobile"] .vote-button {
+  min-width: 96px;
+  min-height: 42px;
+}
+
+body[data-device="mobile"] .delete-button,
+body[data-device="mobile"] .pin-button {
+  width: 42px;
+  height: 42px;
+}
+
+body[data-device="mobile"] .expand-button {
+  min-width: 112px;
+  height: 44px;
+  right: 10px;
+  bottom: 10px;
+}
+
+body[data-device="mobile"] .submit-panel,
+body[data-device="mobile"] .settings-panel,
+body[data-device="mobile"] .ranking {
+  width: calc(100% - 24px);
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+}
+
+body[data-device="mobile"] .agreement-box label {
+  font-size: 13px;
+}
+
+body[data-device="mobile"] .preview-overlay {
+  padding: 10px;
+}
+
+body[data-device="mobile"] .preview-dialog {
+  max-height: calc(100svh - 20px);
+  border-radius: 16px;
+}
+
+body[data-device="mobile"] .preview-dialog img {
+  max-height: calc(100svh - 118px);
 }
