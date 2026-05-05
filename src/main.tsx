@@ -1,6 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Award, Expand, ImagePlus, LogIn, LogOut, Save, Send, Settings, ThumbsUp, Trash2, UploadCloud, X } from "lucide-react";
+import { Award, Expand, ImagePlus, LogIn, LogOut, Pin, PinOff, Save, Send, Settings, ThumbsUp, Trash2, UploadCloud, X } from "lucide-react";
 import "./styles.css";
 
 type User = {
@@ -19,6 +19,7 @@ type Submission = {
   imageUrl: string;
   imagePathname?: string | null;
   createdAt: string;
+  pinnedAt?: string | null;
   voteCount: number;
   votedByMe: boolean;
 };
@@ -39,6 +40,10 @@ const maxUploadBytes = 5 * 1024 * 1024;
 
 function studentKey(user: User) {
   return user.role === "admin" ? "admin" : `${user.batch}-${user.studentID}`;
+}
+
+function hasAdminAccess(user: User) {
+  return user.role === "admin" || studentKey(user) === "26-048";
 }
 
 function loadImageFromFile(file: File) {
@@ -186,7 +191,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [previewSubmission, setPreviewSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const voterId = studentKey(user);
-  const isAdmin = user.role === "admin" || voterId === "admin";
+  const isAdmin = hasAdminAccess(user);
   const [usedVotes, setUsedVotes] = useState(0);
   const remainingVotes = Math.max(0, settings.maxVotesPerUser - usedVotes);
   const userSubmissionCount = submissions.filter((submission) => submission.authorId === voterId).length;
@@ -262,6 +267,23 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
       return;
     }
     setSubmissions((items) => items.filter((item) => item.id !== id));
+  }
+
+  async function togglePinSubmission(id: string) {
+    const target = submissions.find((submission) => submission.id === id);
+    if (!target) return;
+
+    const response = await fetch(`/api/submissions/${id}/pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requesterId: voterId, pinned: !target.pinnedAt })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      alert(payload.message || "고정 처리에 실패했습니다.");
+      return;
+    }
+    await refresh();
   }
 
   return (
@@ -354,8 +376,10 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                 voterId={voterId}
                 remainingVotes={remainingVotes}
                 canDelete={isAdmin || submission.authorId === voterId}
+                canPin={isAdmin}
                 onVote={vote}
                 onDelete={deleteSubmission}
+                onPin={togglePinSubmission}
                 onPreview={setPreviewSubmission}
               />
             ))
@@ -575,16 +599,20 @@ function SubmissionCard({
   voterId,
   remainingVotes,
   canDelete,
+  canPin,
   onVote,
   onDelete,
+  onPin,
   onPreview
 }: {
   submission: Submission;
   voterId: string;
   remainingVotes: number;
   canDelete: boolean;
+  canPin: boolean;
   onVote: (id: string) => void;
   onDelete: (id: string) => void;
+  onPin: (id: string) => void;
   onPreview: (submission: Submission) => void;
 }) {
   const voted = submission.votedByMe;
@@ -616,6 +644,11 @@ function SubmissionCard({
       <footer>
         <span className="vote-count">{submission.voteCount} 추천</span>
         <div className="card-actions">
+          {canPin && (
+            <button className="pin-button" onClick={() => onPin(submission.id)} title={submission.pinnedAt ? "고정 해제" : "첫 번째로 고정"} type="button">
+              {submission.pinnedAt ? <PinOff size={17} aria-hidden /> : <Pin size={17} aria-hidden />}
+            </button>
+          )}
           {canDelete && (
             <button className="delete-button" onClick={() => onDelete(submission.id)} title="삭제" type="button">
               <Trash2 size={17} aria-hidden />

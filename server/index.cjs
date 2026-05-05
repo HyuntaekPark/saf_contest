@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3001;
 const LOGIN_API = "https://api.ksain.net/v1/login.php";
 const LOGIN_KEY = process.env.KSAIN_LOGIN_KEY || "cae214-7e0e84-5c6a4a-4e695b-c39082";
 const ADMIN_ID = "admin";
+const ADMIN_IDS = new Set([ADMIN_ID, "26-048"]);
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "safadmin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin12345";
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -59,6 +60,7 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ`;
   await sql`
     CREATE TABLE IF NOT EXISTS votes (
       submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
@@ -79,7 +81,7 @@ async function ensureSchema() {
 }
 
 function isAdmin(id) {
-  return id === ADMIN_ID;
+  return ADMIN_IDS.has(id);
 }
 
 function mapSubmission(row) {
@@ -92,6 +94,7 @@ function mapSubmission(row) {
     imageUrl: row.image_url,
     imagePathname: row.image_pathname,
     createdAt: new Date(row.created_at).toISOString(),
+    pinnedAt: row.pinned_at ? new Date(row.pinned_at).toISOString() : null,
     voteCount: Number(row.vote_count) || 0,
     votedByMe: Boolean(row.voted_by_me)
   };
@@ -136,12 +139,13 @@ async function readSubmissions(voterId = "") {
       s.image_url,
       s.image_pathname,
       s.created_at,
+      s.pinned_at,
       COUNT(v.voter_id)::int AS vote_count,
       COALESCE(BOOL_OR(v.voter_id = ${voterId}), false) AS voted_by_me
     FROM submissions s
     LEFT JOIN votes v ON v.submission_id = s.id
     GROUP BY s.id
-    ORDER BY s.created_at DESC
+    ORDER BY (s.pinned_at IS NOT NULL) DESC, s.pinned_at DESC NULLS LAST, s.created_at DESC
   `;
   return rows.map(mapSubmission);
 }
@@ -158,6 +162,7 @@ async function readSubmissionById(id, voterId = "") {
       s.image_url,
       s.image_pathname,
       s.created_at,
+      s.pinned_at,
       COUNT(v.voter_id)::int AS vote_count,
       COALESCE(BOOL_OR(v.voter_id = ${voterId}), false) AS voted_by_me
     FROM submissions s
@@ -382,6 +387,29 @@ app.post("/api/submissions", async (req, res, next) => {
       RETURNING id, author_name, author_id, title, description, image_url, image_pathname, created_at
     `;
     res.status(201).json({ ...mapSubmission({ ...rows[0], vote_count: 0, voted_by_me: false }) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/submissions/:id/pin", async (req, res, next) => {
+  try {
+    const { requesterId, pinned } = req.body;
+    if (!isAdmin(requesterId)) return res.status(403).json({ message: "관리자만 게시물을 고정할 수 있습니다." });
+
+    await ensureSchema();
+    const rows = await sql`SELECT id FROM submissions WHERE id = ${req.params.id}`;
+    if (rows.length === 0) return res.status(404).json({ message: "작품을 찾을 수 없습니다." });
+
+    if (pinned) {
+      await sql`UPDATE submissions SET pinned_at = NULL WHERE pinned_at IS NOT NULL`;
+      await sql`UPDATE submissions SET pinned_at = NOW() WHERE id = ${req.params.id}`;
+    } else {
+      await sql`UPDATE submissions SET pinned_at = NULL WHERE id = ${req.params.id}`;
+    }
+
+    const updatedSubmission = await readSubmissionById(req.params.id, requesterId);
+    res.json({ submission: updatedSubmission });
   } catch (error) {
     next(error);
   }
