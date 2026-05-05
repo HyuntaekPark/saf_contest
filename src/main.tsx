@@ -30,13 +30,15 @@ type ContestSettings = {
   maxVotesPerUser: number;
   maxSubmissionsPerUser: number;
   showRanking: boolean;
+  showVoteCounts: boolean;
 };
 
 const userKey = "saf-physics-user";
 const defaultSettings: ContestSettings = {
   maxVotesPerUser: 3,
   maxSubmissionsPerUser: 1,
-  showRanking: true
+  showRanking: true,
+  showVoteCounts: true
 };
 const maxUploadBytes = 5 * 1024 * 1024;
 
@@ -231,6 +233,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
     ? Infinity
     : Math.max(0, settings.maxSubmissionsPerUser - userSubmissionCount);
   const canViewRanking = isAdmin || settings.showRanking;
+  const canViewVoteCounts = isAdmin || settings.showVoteCounts;
 
   async function loadSubmissions({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -367,10 +370,12 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <strong>{submissions.length}</strong>
             <span>제출 작품</span>
           </div>
-          <div>
-            <strong>{submissions.reduce((total, item) => total + (item?.voteCount ?? 0), 0)}</strong>
-            <span>누적 추천</span>
-          </div>
+          {canViewVoteCounts && (
+            <div>
+              <strong>{submissions.reduce((total, item) => total + (item?.voteCount ?? 0), 0)}</strong>
+              <span>누적 추천</span>
+            </div>
+          )}
           <div>
             <strong>{remainingVotes}</strong>
             <span>남은 투표권</span>
@@ -415,7 +420,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           onCreated={refresh}
         />
       )}
-      {activeTab === "ranking" && canViewRanking && <Ranking submissions={ranked} />}
+      {activeTab === "ranking" && canViewRanking && <Ranking submissions={ranked} showVoteCounts={canViewVoteCounts} />}
       {activeTab === "ranking" && !canViewRanking && <p className="empty-state">현재 순위 공개가 꺼져 있습니다.</p>}
       {activeTab === "settings" && isAdmin && (
         <SettingsPanel settings={settings} requesterId={voterId} onSaved={setSettings} />
@@ -435,6 +440,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                 remainingVotes={remainingVotes}
                 canDelete={isAdmin || submission.authorId === voterId}
                 canPin={isAdmin}
+                showVoteCount={canViewVoteCounts}
                 onVote={vote}
                 onDelete={deleteSubmission}
                 onPin={togglePinSubmission}
@@ -607,12 +613,14 @@ function SettingsPanel({
   const [maxVotesPerUser, setMaxVotesPerUser] = useState(settings.maxVotesPerUser);
   const [maxSubmissionsPerUser, setMaxSubmissionsPerUser] = useState(settings.maxSubmissionsPerUser);
   const [showRanking, setShowRanking] = useState(settings.showRanking);
+  const [showVoteCounts, setShowVoteCounts] = useState(settings.showVoteCounts);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMaxVotesPerUser(settings.maxVotesPerUser);
     setMaxSubmissionsPerUser(settings.maxSubmissionsPerUser);
     setShowRanking(settings.showRanking);
+    setShowVoteCounts(settings.showVoteCounts);
   }, [settings]);
 
   async function save(event: FormEvent) {
@@ -621,7 +629,7 @@ function SettingsPanel({
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking })
+      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts })
     });
     const payload = await response.json();
     setSaving(false);
@@ -663,6 +671,10 @@ function SettingsPanel({
         <input checked={showRanking} onChange={(event) => setShowRanking(event.target.checked)} type="checkbox" />
         <span>참가자에게 순위 보기 공개</span>
       </label>
+      <label className="settings-checkbox">
+        <input checked={showVoteCounts} onChange={(event) => setShowVoteCounts(event.target.checked)} type="checkbox" />
+        <span>참가자에게 추천수 공개</span>
+      </label>
       <button className="primary-button" disabled={saving} type="submit">
         <Save size={18} aria-hidden />
         {saving ? "저장 중" : "저장하기"}
@@ -677,6 +689,7 @@ function SubmissionCard({
   remainingVotes,
   canDelete,
   canPin,
+  showVoteCount,
   onVote,
   onDelete,
   onPin,
@@ -687,6 +700,7 @@ function SubmissionCard({
   remainingVotes: number;
   canDelete: boolean;
   canPin: boolean;
+  showVoteCount: boolean;
   onVote: (id: string) => void;
   onDelete: (id: string) => void;
   onPin: (id: string) => void;
@@ -724,7 +738,7 @@ function SubmissionCard({
         <p>{submission.description}</p>
       </section>
       <footer>
-        <span className="vote-count">{submission.voteCount} 추천</span>
+        <span className="vote-count">{showVoteCount ? `${submission.voteCount} 추천` : "추천수 비공개"}</span>
         <div className="card-actions">
           {canPin && (
             <button className="pin-button" onClick={() => onPin(submission.id)} title={submission.pinnedAt ? "고정 해제" : "첫 번째로 고정"} type="button">
@@ -773,7 +787,7 @@ function ImagePreview({ submission, onClose }: { submission: Submission; onClose
   );
 }
 
-function Ranking({ submissions }: { submissions: Submission[] }) {
+function Ranking({ submissions, showVoteCounts }: { submissions: Submission[]; showVoteCounts: boolean }) {
   return (
     <section className="ranking">
       <div className="section-heading">
@@ -786,7 +800,7 @@ function Ranking({ submissions }: { submissions: Submission[] }) {
           <img src={submission.imageUrl} alt="" />
           <div>
             <strong>{submission.title}</strong>
-            <p>{displayAuthor(submission)} · 추천 {submission.voteCount}</p>
+            <p>{displayAuthor(submission)}{showVoteCounts ? ` · 추천 ${submission.voteCount}` : ""}</p>
           </div>
         </article>
       ))}
