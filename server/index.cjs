@@ -18,7 +18,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin12345";
 const DATABASE_URL = process.env.DATABASE_URL;
 const defaultSettings = {
   maxVotesPerUser: 3,
-  maxSubmissionsPerUser: 1
+  maxSubmissionsPerUser: 1,
+  showRanking: true
 };
 
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
@@ -70,7 +71,8 @@ async function ensureSchema() {
     INSERT INTO settings (key, value)
     VALUES
       ('maxVotesPerUser', ${String(defaultSettings.maxVotesPerUser)}),
-      ('maxSubmissionsPerUser', ${String(defaultSettings.maxSubmissionsPerUser)})
+      ('maxSubmissionsPerUser', ${String(defaultSettings.maxSubmissionsPerUser)}),
+      ('showRanking', ${String(defaultSettings.showRanking)})
     ON CONFLICT (key) DO NOTHING
   `;
   schemaReady = true;
@@ -103,6 +105,7 @@ async function readSettings() {
   for (const row of rows) {
     if (row.key === "maxVotesPerUser") settings.maxVotesPerUser = Number(row.value) || defaultSettings.maxVotesPerUser;
     if (row.key === "maxSubmissionsPerUser") settings.maxSubmissionsPerUser = Number(row.value) || defaultSettings.maxSubmissionsPerUser;
+    if (row.key === "showRanking") settings.showRanking = row.value === "true";
   }
   settingsCache = settings;
   return settingsCache;
@@ -114,7 +117,8 @@ async function writeSettings(settings) {
     INSERT INTO settings (key, value)
     VALUES
       ('maxVotesPerUser', ${String(settings.maxVotesPerUser)}),
-      ('maxSubmissionsPerUser', ${String(settings.maxSubmissionsPerUser)})
+      ('maxSubmissionsPerUser', ${String(settings.maxSubmissionsPerUser)}),
+      ('showRanking', ${String(settings.showRanking)})
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `;
   settingsCache = settings;
@@ -332,12 +336,13 @@ app.get("/api/bootstrap", async (req, res, next) => {
 
 app.put("/api/settings", async (req, res, next) => {
   try {
-    const { requesterId, maxVotesPerUser, maxSubmissionsPerUser } = req.body;
+    const { requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking } = req.body;
     if (!isAdmin(requesterId)) return res.status(403).json({ message: "관리자만 설정을 변경할 수 있습니다." });
 
     const nextSettings = {
       maxVotesPerUser: Math.max(1, Math.min(99, Number(maxVotesPerUser) || defaultSettings.maxVotesPerUser)),
-      maxSubmissionsPerUser: Math.max(1, Math.min(99, Number(maxSubmissionsPerUser) || defaultSettings.maxSubmissionsPerUser))
+      maxSubmissionsPerUser: Math.max(1, Math.min(99, Number(maxSubmissionsPerUser) || defaultSettings.maxSubmissionsPerUser)),
+      showRanking: Boolean(showRanking)
     };
     await writeSettings(nextSettings);
     res.json(nextSettings);

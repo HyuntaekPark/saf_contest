@@ -363,6 +363,10 @@ button:not(:disabled):hover {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.tabs.compact-tabs {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .tabs button {
   min-height: 44px;
   display: inline-flex;
@@ -461,16 +465,21 @@ button:not(:disabled):hover {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  width: 40px;
+  min-width: 106px;
   height: 40px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 999px;
   background: rgba(15, 23, 42, 0.72);
   color: #fff;
   cursor: pointer;
   backdrop-filter: blur(8px);
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .description {
@@ -593,6 +602,18 @@ button:not(:disabled):hover {
   background: #fbfdff;
   color: #182033;
   outline: none;
+}
+
+.settings-checkbox {
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+}
+
+.settings-checkbox input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: #147dbe;
 }
 
 .notice {

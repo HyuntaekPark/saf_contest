@@ -26,12 +26,14 @@ type Submission = {
 type ContestSettings = {
   maxVotesPerUser: number;
   maxSubmissionsPerUser: number;
+  showRanking: boolean;
 };
 
 const userKey = "saf-physics-user";
 const defaultSettings: ContestSettings = {
   maxVotesPerUser: 3,
-  maxSubmissionsPerUser: 1
+  maxSubmissionsPerUser: 1,
+  showRanking: true
 };
 const maxUploadBytes = 5 * 1024 * 1024;
 
@@ -191,6 +193,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   const remainingSubmissions = isAdmin
     ? Infinity
     : Math.max(0, settings.maxSubmissionsPerUser - userSubmissionCount);
+  const canViewRanking = isAdmin || settings.showRanking;
 
   async function loadSubmissions() {
     setLoading(true);
@@ -295,7 +298,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
         </aside>
       </section>
 
-      <nav className={isAdmin ? "tabs admin-tabs" : "tabs"} aria-label="행사 메뉴">
+      <nav className={isAdmin ? "tabs admin-tabs" : canViewRanking ? "tabs" : "tabs compact-tabs"} aria-label="행사 메뉴">
         <button className={activeTab === "vote" ? "active" : ""} onClick={() => setActiveTab("vote")}>
           <ThumbsUp size={17} aria-hidden />
           동료 평가
@@ -304,10 +307,12 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           <ImagePlus size={17} aria-hidden />
           작품 제출
         </button>
-        <button className={activeTab === "ranking" ? "active" : ""} onClick={() => setActiveTab("ranking")}>
-          <Award size={17} aria-hidden />
-          순위 보기
-        </button>
+        {canViewRanking && (
+          <button className={activeTab === "ranking" ? "active" : ""} onClick={() => setActiveTab("ranking")}>
+            <Award size={17} aria-hidden />
+            순위 보기
+          </button>
+        )}
         {isAdmin && (
           <button className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>
             <Settings size={17} aria-hidden />
@@ -330,7 +335,8 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           onCreated={refresh}
         />
       )}
-      {activeTab === "ranking" && <Ranking submissions={ranked} />}
+      {activeTab === "ranking" && canViewRanking && <Ranking submissions={ranked} />}
+      {activeTab === "ranking" && !canViewRanking && <p className="empty-state">현재 순위 공개가 꺼져 있습니다.</p>}
       {activeTab === "settings" && isAdmin && (
         <SettingsPanel settings={settings} requesterId={voterId} onSaved={setSettings} />
       )}
@@ -499,11 +505,13 @@ function SettingsPanel({
 }) {
   const [maxVotesPerUser, setMaxVotesPerUser] = useState(settings.maxVotesPerUser);
   const [maxSubmissionsPerUser, setMaxSubmissionsPerUser] = useState(settings.maxSubmissionsPerUser);
+  const [showRanking, setShowRanking] = useState(settings.showRanking);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMaxVotesPerUser(settings.maxVotesPerUser);
     setMaxSubmissionsPerUser(settings.maxSubmissionsPerUser);
+    setShowRanking(settings.showRanking);
   }, [settings]);
 
   async function save(event: FormEvent) {
@@ -512,7 +520,7 @@ function SettingsPanel({
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser })
+      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking })
     });
     const payload = await response.json();
     setSaving(false);
@@ -549,6 +557,10 @@ function SettingsPanel({
           value={maxSubmissionsPerUser}
           onChange={(event) => setMaxSubmissionsPerUser(Number(event.target.value))}
         />
+      </label>
+      <label className="settings-checkbox">
+        <input checked={showRanking} onChange={(event) => setShowRanking(event.target.checked)} type="checkbox" />
+        <span>참가자에게 순위 보기 공개</span>
       </label>
       <button className="primary-button" disabled={saving} type="submit">
         <Save size={18} aria-hidden />
@@ -593,7 +605,8 @@ function SubmissionCard({
       <figure>
         <img src={submission.imageUrl} alt={submission.title} />
         <button className="expand-button" onClick={() => onPreview(submission)} title="크게 보기" type="button">
-          <Expand size={18} aria-hidden />
+          <Expand size={22} aria-hidden />
+          <span>크게보기</span>
         </button>
       </figure>
       <section className="description">
