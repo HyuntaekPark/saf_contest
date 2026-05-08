@@ -76,12 +76,61 @@ function loadImageFromFile(file: File) {
   });
 }
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("이미지를 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function canvasToDataUrl(canvas: HTMLCanvasElement, preferredType = "image/webp") {
+  const candidates = [preferredType, "image/jpeg", "image/png"];
+
+  return new Promise<string>((resolve, reject) => {
+    const tryNext = (index: number) => {
+      const type = candidates[index];
+      if (!type) {
+        reject(new Error("이미지를 압축하지 못했습니다."));
+        return;
+      }
+
+      try {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              tryNext(index + 1);
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error("이미지를 읽지 못했습니다."));
+            reader.readAsDataURL(blob);
+          },
+          type,
+          type === "image/png" ? undefined : 0.82
+        );
+      } catch {
+        tryNext(index + 1);
+      }
+    };
+
+    tryNext(0);
+  });
+}
+
 async function compressImageFile(file: File) {
   if (file.size > maxUploadBytes) {
     throw new Error("이미지는 5MB 이하만 업로드할 수 있습니다.");
   }
 
-  const image = await loadImageFromFile(file);
+  let image: HTMLImageElement;
+  try {
+    image = await loadImageFromFile(file);
+  } catch {
+    return fileToDataUrl(file);
+  }
   const maxSide = 1600;
   const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -93,22 +142,7 @@ async function compressImageFile(file: File) {
   if (!context) throw new Error("이미지를 압축하지 못했습니다.");
   context.drawImage(image, 0, 0, width, height);
 
-  return new Promise<string>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("이미지를 압축하지 못했습니다."));
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("이미지를 읽지 못했습니다."));
-        reader.readAsDataURL(blob);
-      },
-      "image/webp",
-      0.82
-    );
-  });
+  return canvasToDataUrl(canvas);
 }
 
 function App() {
