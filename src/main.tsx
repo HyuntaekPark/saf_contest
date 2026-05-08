@@ -33,6 +33,7 @@ type ContestSettings = {
   showRanking: boolean;
   showVoteCounts: boolean;
   votingEnabled: boolean;
+  submissionsEnabled: boolean;
 };
 
 const userKey = "saf-physics-user";
@@ -41,7 +42,8 @@ const defaultSettings: ContestSettings = {
   maxSubmissionsPerUser: 1,
   showRanking: true,
   showVoteCounts: true,
-  votingEnabled: true
+  votingEnabled: true,
+  submissionsEnabled: true
 };
 const maxUploadBytes = 5 * 1024 * 1024;
 
@@ -273,6 +275,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   const canViewRanking = isAdmin || settings.showRanking;
   const canViewVoteCounts = isAdmin || settings.showVoteCounts;
   const canVote = isAdmin || settings.votingEnabled;
+  const canSubmitWork = isAdmin || settings.submissionsEnabled;
 
   async function loadSubmissions({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -461,6 +464,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           settings={settings}
           submissionCount={userSubmissionCount}
           isAdmin={isAdmin}
+          canSubmitWork={canSubmitWork}
           onCreated={refresh}
         />
       )}
@@ -511,12 +515,14 @@ function SubmitPanel({
   settings,
   submissionCount,
   isAdmin,
+  canSubmitWork,
   onCreated
 }: {
   user: User;
   settings: ContestSettings;
   submissionCount: number;
   isAdmin: boolean;
+  canSubmitWork: boolean;
   onCreated: () => Promise<void>;
 }) {
   const [teamName, setTeamName] = useState("");
@@ -526,7 +532,7 @@ function SubmitPanel({
   const [copyrightAgreed, setCopyrightAgreed] = useState(false);
   const [contentAgreed, setContentAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const blocked = !isAdmin && submissionCount >= settings.maxSubmissionsPerUser;
+  const blocked = !canSubmitWork || (!isAdmin && submissionCount >= settings.maxSubmissionsPerUser);
   const canSubmit = !saving && !blocked && teamName.trim().length > 0 && images.length > 0 && copyrightAgreed && contentAgreed;
 
   async function submit(event: FormEvent) {
@@ -577,7 +583,8 @@ function SubmitPanel({
         <h2>작품 제출</h2>
         <p>{isAdmin ? "관리자는 제출 수 제한 없이 테스트할 수 있습니다." : `제출 ${submissionCount}/${settings.maxSubmissionsPerUser}`}</p>
       </div>
-      {blocked && <p className="notice">한 사람이 올릴 수 있는 최대 게시물 수에 도달했습니다.</p>}
+      {!canSubmitWork && <p className="notice">현재 참여자 작품 제출이 잠겨 있습니다.</p>}
+      {canSubmitWork && blocked && <p className="notice">한 사람이 올릴 수 있는 최대 게시물 수에 도달했습니다.</p>}
       <label>
         <span>팀명</span>
         <input value={teamName} onChange={(event) => setTeamName(event.target.value)} maxLength={30} required disabled={blocked} />
@@ -667,6 +674,7 @@ function SettingsPanel({
   const [showRanking, setShowRanking] = useState(settings.showRanking);
   const [showVoteCounts, setShowVoteCounts] = useState(settings.showVoteCounts);
   const [votingEnabled, setVotingEnabled] = useState(settings.votingEnabled);
+  const [submissionsEnabled, setSubmissionsEnabled] = useState(settings.submissionsEnabled);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -675,6 +683,7 @@ function SettingsPanel({
     setShowRanking(settings.showRanking);
     setShowVoteCounts(settings.showVoteCounts);
     setVotingEnabled(settings.votingEnabled);
+    setSubmissionsEnabled(settings.submissionsEnabled);
   }, [settings]);
 
   async function save(event: FormEvent) {
@@ -683,7 +692,7 @@ function SettingsPanel({
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts, votingEnabled })
+      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts, votingEnabled, submissionsEnabled })
     });
     const payload = await response.json();
     setSaving(false);
@@ -732,6 +741,10 @@ function SettingsPanel({
       <label className="settings-checkbox">
         <input checked={votingEnabled} onChange={(event) => setVotingEnabled(event.target.checked)} type="checkbox" />
         <span>참여자 투표 허용</span>
+      </label>
+      <label className="settings-checkbox">
+        <input checked={submissionsEnabled} onChange={(event) => setSubmissionsEnabled(event.target.checked)} type="checkbox" />
+        <span>참여자 작품 제출 허용</span>
       </label>
       <button className="primary-button" disabled={saving} type="submit">
         <Save size={18} aria-hidden />
