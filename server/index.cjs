@@ -27,7 +27,6 @@ const defaultSettings = {
 
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 let schemaReady = false;
-let settingsCache = null;
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.urlencoded({ extended: false }));
@@ -126,7 +125,6 @@ function parseJsonList(value, fallback) {
 
 async function readSettings() {
   await ensureSchema();
-  if (settingsCache) return settingsCache;
   const rows = await sql`SELECT key, value FROM settings`;
   const settings = { ...defaultSettings };
   for (const row of rows) {
@@ -136,8 +134,7 @@ async function readSettings() {
     if (row.key === "showVoteCounts") settings.showVoteCounts = row.value === "true";
     if (row.key === "votingEnabled") settings.votingEnabled = row.value === "true";
   }
-  settingsCache = settings;
-  return settingsCache;
+  return settings;
 }
 
 async function writeSettings(settings) {
@@ -152,7 +149,6 @@ async function writeSettings(settings) {
       ('votingEnabled', ${String(settings.votingEnabled)})
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `;
-  settingsCache = settings;
 }
 
 async function readSubmissions(voterId = "") {
@@ -399,12 +395,13 @@ app.put("/api/settings", async (req, res, next) => {
     const { requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts, votingEnabled } = req.body;
     if (!isAdmin(requesterId)) return res.status(403).json({ message: "관리자만 설정을 변경할 수 있습니다." });
 
+    const currentSettings = await readSettings();
     const nextSettings = {
       maxVotesPerUser: Math.max(1, Math.min(99, Number(maxVotesPerUser) || defaultSettings.maxVotesPerUser)),
       maxSubmissionsPerUser: Math.max(1, Math.min(99, Number(maxSubmissionsPerUser) || defaultSettings.maxSubmissionsPerUser)),
       showRanking: Boolean(showRanking),
       showVoteCounts: Boolean(showVoteCounts),
-      votingEnabled: Boolean(votingEnabled)
+      votingEnabled: typeof votingEnabled === "boolean" ? votingEnabled : currentSettings.votingEnabled
     };
     await writeSettings(nextSettings);
     res.json(nextSettings);
