@@ -21,7 +21,8 @@ const defaultSettings = {
   maxVotesPerUser: 3,
   maxSubmissionsPerUser: 1,
   showRanking: true,
-  showVoteCounts: true
+  showVoteCounts: true,
+  votingEnabled: true
 };
 
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
@@ -79,7 +80,8 @@ async function ensureSchema() {
       ('maxVotesPerUser', ${String(defaultSettings.maxVotesPerUser)}),
       ('maxSubmissionsPerUser', ${String(defaultSettings.maxSubmissionsPerUser)}),
       ('showRanking', ${String(defaultSettings.showRanking)}),
-      ('showVoteCounts', ${String(defaultSettings.showVoteCounts)})
+      ('showVoteCounts', ${String(defaultSettings.showVoteCounts)}),
+      ('votingEnabled', ${String(defaultSettings.votingEnabled)})
     ON CONFLICT (key) DO NOTHING
   `;
   schemaReady = true;
@@ -132,6 +134,7 @@ async function readSettings() {
     if (row.key === "maxSubmissionsPerUser") settings.maxSubmissionsPerUser = Number(row.value) || defaultSettings.maxSubmissionsPerUser;
     if (row.key === "showRanking") settings.showRanking = row.value === "true";
     if (row.key === "showVoteCounts") settings.showVoteCounts = row.value === "true";
+    if (row.key === "votingEnabled") settings.votingEnabled = row.value === "true";
   }
   settingsCache = settings;
   return settingsCache;
@@ -145,7 +148,8 @@ async function writeSettings(settings) {
       ('maxVotesPerUser', ${String(settings.maxVotesPerUser)}),
       ('maxSubmissionsPerUser', ${String(settings.maxSubmissionsPerUser)}),
       ('showRanking', ${String(settings.showRanking)}),
-      ('showVoteCounts', ${String(settings.showVoteCounts)})
+      ('showVoteCounts', ${String(settings.showVoteCounts)}),
+      ('votingEnabled', ${String(settings.votingEnabled)})
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `;
   settingsCache = settings;
@@ -392,14 +396,15 @@ app.get("/api/bootstrap", async (req, res, next) => {
 
 app.put("/api/settings", async (req, res, next) => {
   try {
-    const { requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts } = req.body;
+    const { requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts, votingEnabled } = req.body;
     if (!isAdmin(requesterId)) return res.status(403).json({ message: "관리자만 설정을 변경할 수 있습니다." });
 
     const nextSettings = {
       maxVotesPerUser: Math.max(1, Math.min(99, Number(maxVotesPerUser) || defaultSettings.maxVotesPerUser)),
       maxSubmissionsPerUser: Math.max(1, Math.min(99, Number(maxSubmissionsPerUser) || defaultSettings.maxSubmissionsPerUser)),
       showRanking: Boolean(showRanking),
-      showVoteCounts: Boolean(showVoteCounts)
+      showVoteCounts: Boolean(showVoteCounts),
+      votingEnabled: Boolean(votingEnabled)
     };
     await writeSettings(nextSettings);
     res.json(nextSettings);
@@ -506,6 +511,9 @@ app.post("/api/submissions/:id/vote", async (req, res, next) => {
 
     await ensureSchema();
     const settings = await readSettings();
+    if (!settings.votingEnabled && !isAdmin(voterId)) {
+      return res.status(403).json({ message: "현재 참여자 투표가 잠겨 있습니다." });
+    }
     const rows = await sql`SELECT * FROM submissions WHERE id = ${req.params.id}`;
     const submission = rows[0];
     if (!submission) return res.status(404).json({ message: "작품을 찾을 수 없습니다." });

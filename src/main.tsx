@@ -32,6 +32,7 @@ type ContestSettings = {
   maxSubmissionsPerUser: number;
   showRanking: boolean;
   showVoteCounts: boolean;
+  votingEnabled: boolean;
 };
 
 const userKey = "saf-physics-user";
@@ -39,7 +40,8 @@ const defaultSettings: ContestSettings = {
   maxVotesPerUser: 3,
   maxSubmissionsPerUser: 1,
   showRanking: true,
-  showVoteCounts: true
+  showVoteCounts: true,
+  votingEnabled: true
 };
 const maxUploadBytes = 5 * 1024 * 1024;
 
@@ -270,6 +272,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
     : Math.max(0, settings.maxSubmissionsPerUser - userSubmissionCount);
   const canViewRanking = isAdmin || settings.showRanking;
   const canViewVoteCounts = isAdmin || settings.showVoteCounts;
+  const canVote = isAdmin || settings.votingEnabled;
 
   async function loadSubmissions({ silent = false } = {}) {
     if (!silent) setLoading(true);
@@ -318,6 +321,11 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   );
 
   async function vote(id: string) {
+    if (!canVote) {
+      alert("현재 참여자 투표가 잠겨 있습니다.");
+      return;
+    }
+
     const target = submissions.find((submission) => submission.id === id);
     if (target?.authorId === voterId) {
       alert("본인은 추천할 수 없습니다.");
@@ -476,6 +484,7 @@ function ContestApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                 remainingVotes={remainingVotes}
                 canDelete={isAdmin || submission.authorId === voterId}
                 canPin={isAdmin}
+                canVote={canVote}
                 showVoteCount={canViewVoteCounts}
                 onVote={vote}
                 onDelete={deleteSubmission}
@@ -657,6 +666,7 @@ function SettingsPanel({
   const [maxSubmissionsPerUser, setMaxSubmissionsPerUser] = useState(settings.maxSubmissionsPerUser);
   const [showRanking, setShowRanking] = useState(settings.showRanking);
   const [showVoteCounts, setShowVoteCounts] = useState(settings.showVoteCounts);
+  const [votingEnabled, setVotingEnabled] = useState(settings.votingEnabled);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -664,6 +674,7 @@ function SettingsPanel({
     setMaxSubmissionsPerUser(settings.maxSubmissionsPerUser);
     setShowRanking(settings.showRanking);
     setShowVoteCounts(settings.showVoteCounts);
+    setVotingEnabled(settings.votingEnabled);
   }, [settings]);
 
   async function save(event: FormEvent) {
@@ -672,7 +683,7 @@ function SettingsPanel({
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts })
+      body: JSON.stringify({ requesterId, maxVotesPerUser, maxSubmissionsPerUser, showRanking, showVoteCounts, votingEnabled })
     });
     const payload = await response.json();
     setSaving(false);
@@ -718,6 +729,10 @@ function SettingsPanel({
         <input checked={showVoteCounts} onChange={(event) => setShowVoteCounts(event.target.checked)} type="checkbox" />
         <span>참가자에게 추천수 공개</span>
       </label>
+      <label className="settings-checkbox">
+        <input checked={votingEnabled} onChange={(event) => setVotingEnabled(event.target.checked)} type="checkbox" />
+        <span>참여자 투표 허용</span>
+      </label>
       <button className="primary-button" disabled={saving} type="submit">
         <Save size={18} aria-hidden />
         {saving ? "저장 중" : "저장하기"}
@@ -732,6 +747,7 @@ function SubmissionCard({
   remainingVotes,
   canDelete,
   canPin,
+  canVote,
   showVoteCount,
   onVote,
   onDelete,
@@ -743,6 +759,7 @@ function SubmissionCard({
   remainingVotes: number;
   canDelete: boolean;
   canPin: boolean;
+  canVote: boolean;
   showVoteCount: boolean;
   onVote: (id: string) => void;
   onDelete: (id: string) => void;
@@ -796,11 +813,12 @@ function SubmissionCard({
           <button
             className={voted ? "vote-button voted" : "vote-button"}
             onClick={() => onVote(submission.id)}
-            title={mine ? "본인은 추천할 수 없습니다." : remainingVotes === 0 && !voted ? "남은 투표권이 없습니다." : "추천"}
+            disabled={!canVote}
+            title={!canVote ? "현재 참여자 투표가 잠겨 있습니다." : mine ? "본인은 추천할 수 없습니다." : remainingVotes === 0 && !voted ? "남은 투표권이 없습니다." : "추천"}
             type="button"
           >
             <ThumbsUp size={17} aria-hidden />
-            {mine ? "본인 작품" : voted ? "추천취소" : "추천"}
+            {!canVote ? "투표 잠김" : mine ? "본인 작품" : voted ? "추천취소" : "추천"}
           </button>
         </div>
       </footer>
