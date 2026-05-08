@@ -64,6 +64,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS image_urls TEXT`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS image_pathnames TEXT`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS team_name TEXT`;
   await sql`
     CREATE TABLE IF NOT EXISTS votes (
       submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
@@ -95,6 +96,7 @@ function mapSubmission(row) {
     id: row.id,
     authorName: row.author_name,
     authorId: row.author_id,
+    teamName: row.team_name || "",
     title: row.title,
     description: row.description,
     imageUrl: imageUrls[0],
@@ -156,6 +158,7 @@ async function readSubmissions(voterId = "") {
       s.id,
       s.author_name,
       s.author_id,
+      s.team_name,
       s.title,
       s.description,
       s.image_url,
@@ -181,6 +184,7 @@ async function readSubmissionById(id, voterId = "") {
       s.id,
       s.author_name,
       s.author_id,
+      s.team_name,
       s.title,
       s.description,
       s.image_url,
@@ -414,11 +418,11 @@ app.get("/api/submissions", async (_req, res, next) => {
 
 app.post("/api/submissions", async (req, res, next) => {
   try {
-    const { authorName, authorId, title, description, imageDataUrl, imageDataUrls, imageName, imageNames } = req.body;
+    const { authorName, authorId, teamName, title, description, imageDataUrl, imageDataUrls, imageName, imageNames } = req.body;
     const requestedImages = Array.isArray(imageDataUrls) ? imageDataUrls : imageDataUrl ? [imageDataUrl] : [];
     const requestedNames = Array.isArray(imageNames) ? imageNames : imageName ? [imageName] : [];
-    if (!authorName || !authorId || !title || !description || requestedImages.length === 0) {
-      return res.status(400).json({ message: "제목, 설명, 이미지가 모두 필요합니다." });
+    if (!authorName || !authorId || !teamName || !title || !description || requestedImages.length === 0) {
+      return res.status(400).json({ message: "팀명, 제목, 설명, 이미지가 모두 필요합니다." });
     }
     if (requestedImages.length > 2) {
       return res.status(400).json({ message: "이미지는 한 작품당 최대 2장까지 업로드할 수 있습니다." });
@@ -442,9 +446,9 @@ app.post("/api/submissions", async (req, res, next) => {
     const imagePathname = imagePathnames[0] ?? null;
     const id = `${Date.now()}`;
     const rows = await sql`
-      INSERT INTO submissions (id, author_name, author_id, title, description, image_url, image_pathname, image_urls, image_pathnames)
-      VALUES (${id}, ${authorName}, ${authorId}, ${title}, ${description}, ${imageUrl}, ${imagePathname}, ${JSON.stringify(imageUrls)}, ${JSON.stringify(imagePathnames)})
-      RETURNING id, author_name, author_id, title, description, image_url, image_pathname, image_urls, image_pathnames, created_at
+      INSERT INTO submissions (id, author_name, author_id, team_name, title, description, image_url, image_pathname, image_urls, image_pathnames)
+      VALUES (${id}, ${authorName}, ${authorId}, ${String(teamName).trim()}, ${title}, ${description}, ${imageUrl}, ${imagePathname}, ${JSON.stringify(imageUrls)}, ${JSON.stringify(imagePathnames)})
+      RETURNING id, author_name, author_id, team_name, title, description, image_url, image_pathname, image_urls, image_pathnames, created_at
     `;
     res.status(201).json({ ...mapSubmission({ ...rows[0], vote_count: 0, voted_by_me: false }) });
   } catch (error) {

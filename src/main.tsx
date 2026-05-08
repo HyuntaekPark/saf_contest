@@ -14,6 +14,7 @@ type Submission = {
   id: string;
   authorName: string;
   authorId: string;
+  teamName?: string;
   title: string;
   description: string;
   imageUrl: string;
@@ -47,7 +48,8 @@ function studentKey(user: User) {
 }
 
 function displayAuthor(submission: Submission) {
-  return `${submission.authorName}(${submission.authorId})`;
+  const author = `${submission.authorName}(${submission.authorId})`;
+  return submission.teamName ? `${author} · ${submission.teamName}` : author;
 }
 
 function submissionImages(submission: Submission) {
@@ -474,6 +476,7 @@ function SubmitPanel({
   isAdmin: boolean;
   onCreated: () => Promise<void>;
 }) {
+  const [teamName, setTeamName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
@@ -481,7 +484,7 @@ function SubmitPanel({
   const [contentAgreed, setContentAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const blocked = !isAdmin && submissionCount >= settings.maxSubmissionsPerUser;
-  const canSubmit = !saving && !blocked && images.length > 0 && copyrightAgreed && contentAgreed;
+  const canSubmit = !saving && !blocked && teamName.trim().length > 0 && images.length > 0 && copyrightAgreed && contentAgreed;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -496,6 +499,7 @@ function SubmitPanel({
         body: JSON.stringify({
           authorName: user.name,
           authorId: studentKey(user),
+          teamName,
           title,
           description,
           imageDataUrls,
@@ -508,6 +512,7 @@ function SubmitPanel({
         alert(payload.message || "제출에 실패했습니다.");
         return;
       }
+      setTeamName("");
       setTitle("");
       setDescription("");
       setImages([]);
@@ -530,6 +535,10 @@ function SubmitPanel({
         <p>{isAdmin ? "관리자는 제출 수 제한 없이 테스트할 수 있습니다." : `제출 ${submissionCount}/${settings.maxSubmissionsPerUser}`}</p>
       </div>
       {blocked && <p className="notice">한 사람이 올릴 수 있는 최대 게시물 수에 도달했습니다.</p>}
+      <label>
+        <span>팀명</span>
+        <input value={teamName} onChange={(event) => setTeamName(event.target.value)} maxLength={30} required disabled={blocked} />
+      </label>
       <label>
         <span>제목</span>
         <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={40} required disabled={blocked} />
